@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>canvas art</title>
+  </head>
+  <style>
+    .error {
+      margin: 1em;
+      border: 2px solid red;
+      padding: 1em;
+      display: inline-block;
+    }
+    .error::after {
+      content: ' is required but not supported';
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      background: black;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+  <body>
+    <noscript>
+      <div class="error">javascript</div>
+    </noscript>
+    <canvas id="art">
+      <div class="error">canvas</div>
+    </canvas>
+    <!-- inspired from https://openprocessing.org/sketch/492096 -->
+    <script>
+      /* variables */
+      const canvas = document.querySelector('canvas#art');
+      const context = canvas.getContext('2d');
+      let canvasX = 1;
+      let canvasY = 1;
+      let canvasWidth = 1;
+      let canvasHeight = 1;
+      const objects = [];
+      let isMouseDown = false;
+      const startAngel = 0;
+      const endAngel = Math.PI * 2;
+      const fillStyle = 'cyan';
+      const lineWidth = 1;
+      const strokeStyle = 'cyan';
+      const density = 1 / 10000;
+      const G = 1;
+      const minRadius = 1;
+      const maxRadius = 10;
+      let mouseEvent = null;
+      const friction = 0.5;
+      const antiFriction = 1 - friction;
+
+      /* setup */
+      resize();
+      requestAnimationFrame(draw);
+
+      /* register event listeners */
+      window.addEventListener('resize', resize);
+      canvas.addEventListener('click', addObject);
+      canvas.addEventListener('mousedown', (event) => {
+        mouseEvent = event;
+        isMouseDown = true;
+      });
+      canvas.addEventListener('mouseup', () => {
+        mouseEvent = null;
+        isMouseDown = false;
+      });
+      canvas.addEventListener('mousemove', (event) => {
+        mouseEvent = event;
+        if (isMouseDown) {
+          addObject(event);
+        }
+      });
+      window.addEventListener('keypress', (event) => {
+        if (event.key == 'r') {
+          let N = 10;
+          for (let i = 0; i < N; i++) {
+            addObject({
+              clientX: random(0, canvasWidth),
+              clientY: random(0, canvasHeight),
+            });
+          }
+        }
+      });
+
+      /* functions */
+      function resize() {
+        let rect = canvas.getBoundingClientRect();
+        canvasX = rect.x;
+        canvasY = rect.y;
+        canvasWidth = canvas.width = rect.width;
+        canvasHeight = canvas.height = rect.height;
+      }
+
+      function random(min, max) {
+        let range = max - min;
+        return Math.random() * range + min;
+      }
+
+      function randomHex() {
+        let num = Math.floor(Math.random() * 64 * 3) + 64;
+        let hex = num.toString(16);
+        if (hex.length == 2) {
+          return hex;
+        }
+        return '0' + hex;
+      }
+
+      function randomColor() {
+        return '#' + randomHex() + randomHex() + randomHex();
+      }
+
+      function addObject(event) {
+        let x = event.clientX - canvasX;
+        let y = event.clientY - canvasY;
+        let radius = random(minRadius, maxRadius);
+        // let volume = (4 / 3) * Math.PI * radius ** 3;
+        // let mass = volume * density;
+        let area = Math.PI * radius ** 2;
+        let mass = area * density;
+        objects.push({
+          color: randomColor(),
+          x,
+          y,
+          vx: 0,
+          vy: 0,
+          radius,
+          mass,
+        });
+      }
+
+      function draw() {
+        if (isMouseDown && mouseEvent) {
+          addObject(mouseEvent);
+        }
+        let totalRadius = 0;
+        objects.forEach((a) => {
+          let ax = 0;
+          let ay = 0;
+          totalRadius += a.radius;
+          objects.forEach((b) => {
+            if (a == b) return;
+            let dx = b.x - a.x;
+            let dy = b.y - a.y;
+            let r = Math.sqrt(dx * dx + dy * dy);
+            if (r < 1) r = 1;
+            // let F = (G * a.mass * b.mass) / r ** 2;
+            let F = ((r - 320) * b.mass) / r;
+            ax += F * dx;
+            ay += F * dy;
+          });
+          a.vx = a.vx * antiFriction + ax * a.mass;
+          a.vy = a.vy * antiFriction + ay * a.mass;
+        });
+        context.clearRect(0, 0, canvasWidth, canvasHeight);
+        objects.forEach((o) => {
+          o.x += o.vx;
+          o.y += o.vy;
+          context.beginPath();
+          // context.fillStyle = fillStyle;
+          // context.strokeStyle = strokeStyle;
+          context.fillStyle = o.color;
+          context.strokeStyle = o.color;
+          context.lineWidth = lineWidth;
+          let radius = (o.radius / totalRadius) * objects.length * 3;
+          // let radius = o.radius;
+          context.arc(o.x, o.y, radius, startAngel, endAngel);
+          context.fill();
+          context.stroke();
+        });
+        requestAnimationFrame(draw);
+      }
+    </script>
+  </body>
+</html>
